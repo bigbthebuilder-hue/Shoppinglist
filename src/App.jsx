@@ -9,7 +9,10 @@ const STORE_OPTIONS = [
   'Home Hardware',
 ]
 
+const STORE_TABS = ['All Stores', ...STORE_OPTIONS]
+
 const SORT_ORDER = {
+  '': 0,
   Costco: 1,
   Superstore: 2,
   Independent: 3,
@@ -45,6 +48,10 @@ function formatTimestamp(value) {
   })
 }
 
+function getStoreLabel(value) {
+  return value || 'Any Store'
+}
+
 export default function App() {
   const [householdCodeInput, setHouseholdCodeInput] = useState(loadSavedHouseholdCode())
   const [householdCode, setHouseholdCode] = useState(loadSavedHouseholdCode())
@@ -55,7 +62,8 @@ export default function App() {
   const [name, setName] = useState('')
   const [qty, setQty] = useState('1')
   const [note, setNote] = useState('')
-  const [category, setCategory] = useState('Costco')
+  const [category, setCategory] = useState('')
+  const [activeStore, setActiveStore] = useState('All Stores')
 
   const loadItems = useCallback(async () => {
     if (!householdCode) {
@@ -83,26 +91,6 @@ export default function App() {
 
     setLoading(false)
   }, [householdCode])
-
-  const activeItems = useMemo(
-    () =>
-      items
-        .filter((item) => !item.checked)
-        .sort((a, b) => {
-          const catDiff = (SORT_ORDER[a.category] || 999) - (SORT_ORDER[b.category] || 999)
-          if (catDiff !== 0) return catDiff
-          return a.name.localeCompare(b.name)
-        }),
-    [items]
-  )
-
-  const checkedItems = useMemo(
-    () =>
-      items
-        .filter((item) => item.checked)
-        .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at)),
-    [items]
-  )
 
   useEffect(() => {
     if (!householdCode) {
@@ -134,6 +122,31 @@ export default function App() {
       if (channel) supabase.removeChannel(channel)
     }
   }, [householdCode, loadItems])
+
+  function matchesActiveStore(item) {
+    if (activeStore === 'All Stores') return true
+    return !item.category || item.category === activeStore
+  }
+
+  const activeItems = useMemo(
+    () =>
+      items
+        .filter((item) => !item.checked && matchesActiveStore(item))
+        .sort((a, b) => {
+          const catDiff = (SORT_ORDER[a.category || ''] || 999) - (SORT_ORDER[b.category || ''] || 999)
+          if (catDiff !== 0) return catDiff
+          return a.name.localeCompare(b.name)
+        }),
+    [items, activeStore]
+  )
+
+  const checkedItems = useMemo(
+    () =>
+      items
+        .filter((item) => item.checked && matchesActiveStore(item))
+        .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at)),
+    [items, activeStore]
+  )
 
   async function handleJoinHousehold(e) {
     e.preventDefault()
@@ -193,7 +206,7 @@ export default function App() {
     setName('')
     setQty('1')
     setNote('')
-    setCategory('Costco')
+    setCategory('')
     await loadItems()
   }
 
@@ -307,6 +320,7 @@ export default function App() {
                 <div>
                   <label style={styles.label}>Store</label>
                   <select value={category} onChange={(e) => setCategory(e.target.value)} style={styles.input}>
+                    <option value="">No Store / Any Store</option>
                     {STORE_OPTIONS.map((option) => (
                       <option key={option} value={option}>
                         {option}
@@ -331,6 +345,31 @@ export default function App() {
               </button>
             </form>
 
+            <div style={styles.panel}>
+              <div style={styles.storeBarHeader}>
+                <h2 style={styles.storeBarTitle}>Store View</h2>
+                <span style={styles.storeBarSubtitle}>
+                  Pick the store you are shopping. That view shows store-specific items plus any unassigned items.
+                </span>
+              </div>
+
+              <div style={styles.tabWrap}>
+                {STORE_TABS.map((store) => {
+                  const isActive = activeStore === store
+                  return (
+                    <button
+                      key={store}
+                      type="button"
+                      onClick={() => setActiveStore(store)}
+                      style={isActive ? styles.storeTabActive : styles.storeTab}
+                    >
+                      {store}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
             {error ? <div style={styles.errorBox}>{error}</div> : null}
 
             <div style={styles.columns}>
@@ -341,7 +380,7 @@ export default function App() {
                 </div>
 
                 {loading ? <p style={styles.emptyText}>Loading items...</p> : null}
-                {!loading && !activeItems.length ? <p style={styles.emptyText}>Nothing on the list yet.</p> : null}
+                {!loading && !activeItems.length ? <p style={styles.emptyText}>Nothing on the list for this store view.</p> : null}
 
                 <div style={styles.listWrap}>
                   {activeItems.map((item) => (
@@ -360,7 +399,7 @@ export default function App() {
                       </div>
 
                       <div style={styles.itemBottomRow}>
-                        <span style={styles.storeTag}>{item.category}</span>
+                        <span style={styles.storeTag}>{getStoreLabel(item.category)}</span>
                         {item.note ? <span style={styles.noteText}>{item.note}</span> : null}
                       </div>
 
@@ -412,7 +451,7 @@ export default function App() {
                       </div>
 
                       <div style={styles.itemBottomRow}>
-                        <span style={styles.storeTagChecked}>{item.category}</span>
+                        <span style={styles.storeTagChecked}>{getStoreLabel(item.category)}</span>
                         <span style={styles.timeText}>{formatTimestamp(item.updated_at)}</span>
                       </div>
 
@@ -558,6 +597,47 @@ const styles = {
   },
   fieldSpan3: {
     gridColumn: 'span 3',
+  },
+  storeBarHeader: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    marginBottom: '12px',
+  },
+  storeBarTitle: {
+    margin: 0,
+    fontSize: '22px',
+  },
+  storeBarSubtitle: {
+    fontSize: '14px',
+    color: '#576277',
+  },
+  tabWrap: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '10px',
+  },
+  storeTab: {
+    minHeight: '40px',
+    borderRadius: '999px',
+    border: '1px solid #c8d2e2',
+    background: '#fff',
+    padding: '0 14px',
+    fontSize: '14px',
+    fontWeight: 700,
+    color: '#142033',
+    cursor: 'pointer',
+  },
+  storeTabActive: {
+    minHeight: '40px',
+    borderRadius: '999px',
+    border: '1px solid #1f6fff',
+    background: '#1f6fff',
+    color: '#fff',
+    padding: '0 14px',
+    fontSize: '14px',
+    fontWeight: 700,
+    cursor: 'pointer',
   },
   columns: {
     display: 'grid',
