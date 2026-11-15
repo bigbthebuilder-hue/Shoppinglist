@@ -1,0 +1,54 @@
+* { box-sizing: border-box; }
+body { margin: 0; background: #f4f6fb; color: #142033; font-family: Arial, sans-serif; }
+button, input, select { font: inherit; min-height: 44px; min-width: 44px; border-radius: 8px; border: 1px solid #c8d2e2; }
+button { cursor: pointer; padding: 0 12px; background: #fff; color: #142033; }
+button:disabled { opacity: .5; cursor: default; }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #1f6fff; outline-offset: 2px; }
+input, select { width: 100%; padding: 8px 10px; background: #fff; color: inherit; font-size: 16px; }
+.app { max-width: 980px; padding: 16px; margin: auto; }
+.app-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+h1 { font-size: 24px; margin: 0; }
+h2 { font-size: 17px; margin: 0; }
+.status { font-size: 12px; border-radius: 20px; padding: 6px 10px; color: #fff; }
+.online { background: #23713e; }.offline { background: #956000; }
+.panel { background: #fff; border: 1px solid #d9e1ef; border-radius: 10px; margin-bottom: 8px; }
+.list-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.list-picker { display: flex; flex: 1; gap: 8px; align-items: center; font-size: 14px; font-weight: bold; min-width: 180px; }
+.list-picker select { flex: 1; min-width: 0; }
+.tools { flex: 0 1 auto; }
+summary { min-height: 44px; padding: 12px; cursor: pointer; font-size: 14px; }
+.tool-content { padding: 0 12px 12px; }
+.tools[open] { width: 100%; flex-basis: 100%; background: #fff; border-radius: 10px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.add-list { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 8px; }
+.primary { background: #1f6fff; color: #fff; border-color: #1f6fff; font-weight: bold; }
+.danger, .delete-item { color: #a22a2a; }
+.muted, .notice { color: #576277; font-size: 12px; }
+.sync-tools summary .muted { margin-left: 8px; }
+.notice { margin: 6px 4px; overflow-wrap: anywhere; }
+.error { padding: 10px; color: #9f1d1d; background: #ffe8e8; border-radius: 8px; margin-bottom: 8px; }
+.add-item { padding: 8px; }
+.quick-add { display: grid; grid-template-columns: minmax(0, 1fr) 60px auto; gap: 6px; }
+.item-options summary { padding: 12px 4px; color: #576277; }
+.optional-fields { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; padding-bottom: 4px; }
+.optional-fields label { font-size: 12px; display: grid; gap: 4px; min-width: 0; }
+.store-filters { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 8px; margin-bottom: 4px; }
+.store-filters button { flex-shrink: 0; white-space: nowrap; font-size: 13px; border-radius: 22px; }
+.store-filters button[aria-pressed=true] { background: #1f6fff; color: white; border-color: #1f6fff; }
+.columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.shopping-section { overflow: hidden; min-width: 0; }
+.section-header { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 12px; }
+.count { display: inline-block; border-radius: 16px; padding: 3px 8px; background: #e9efff; color: #1747aa; font-size: 12px; margin-left: 6px; }
+.cart summary { font-size: 17px; font-weight: bold; }
+.cart-content > button { margin: 0 8px 8px; }
+.empty { font-size: 14px; color: #576277; padding: 12px; margin: 0; }
+.item-row { display: flex; min-height: 52px; border-top: 1px solid #e5eaf2; align-items: center; padding: 0 4px; }
+.item-toggle { flex: 1; display: flex; align-items: center; gap: 8px; padding: 4px; border: 0; border-radius: 4px; min-height: 51px; min-width: 0; text-align: left; background: transparent; }
+.check { font-size: 23px; width: 24px; flex-shrink: 0; color: #1f6fff; text-align: center; }
+.item-copy { flex: 1; min-width: 0; }
+.item-copy strong { display: block; font-size: 15px; line-height: 19px; overflow-wrap: anywhere; }
+.item-meta { display: block; font-size: 12px; line-height: 16px; color: #576277; overflow-wrap: anywhere; }
+.quantity { font-size: 14px; max-width: 28%; overflow-wrap: anywhere; }
+.delete-item { width: 44px; height: 44px; flex-shrink: 0; border: 0; background: transparent; font-size: 22px; padding: 0; }
+.checked { background: #eefcf2; }.checked .check { color: #23713e; }
+@media (max-width: 640px) { .app { padding: 10px; } h1 { font-size: 21px; } .columns { grid-template-columns: minmax(0, 1fr); gap: 0; } .optional-fields { grid-template-columns: minmax(0, 1fr); } }

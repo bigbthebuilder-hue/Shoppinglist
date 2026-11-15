@@ -473,207 +473,95 @@ export default function App() {
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.appCard}>
-        <div style={styles.headerRow}>
-          <div>
-            <h1 style={styles.title}>Family Grocery List</h1>
-            <p style={styles.subtitle}>Offline-first shared shopping lists</p>
+    <main className="app">
+      <header className="app-header">
+        <h1>Family Grocery List</h1>
+        <span className={isOnline ? 'status online' : 'status offline'}>{isOnline ? 'Online' : 'Offline'}</span>
+      </header>
+
+      <div className="list-toolbar">
+        <label className="list-picker">List
+          <select value={activeList.id} onChange={(e) => selectList(e.target.value)}>
+            {lists.map((list) => <option key={list.id} value={list.id}>{list.name} ({items.filter((item) => item.list_id === list.id).length})</option>)}
+          </select>
+        </label>
+        <details className="tools">
+          <summary>Manage lists</summary>
+          <div className="tool-content">
+            <div className="actions">
+              <button type="button" onClick={renameActiveList} disabled={activeList.id === HOME_LIST_ID}>Rename</button>
+              <button type="button" onClick={deleteActiveList} disabled={activeList.id === HOME_LIST_ID} className="danger">Delete list</button>
+            </div>
+            <form onSubmit={handleAddList} className="add-list">
+              <input aria-label="New list name" value={newListName} onChange={(e) => setNewListName(e.target.value)} placeholder="New list name" />
+              <button type="submit" className="primary">Add list</button>
+            </form>
           </div>
-          <div style={{ ...styles.statusPillOnline, background: isOnline ? '#23713e' : '#a86800' }}>{isOnline ? 'Online' : 'Offline'}</div>
-        </div>
-
-        <div style={styles.syncPanel}>
-          <div>
-            <strong>{activeList.name}:</strong> {currentListItems.length} item{currentListItems.length === 1 ? '' : 's'}
-            <div style={styles.syncText}>Last synced: {lastSync ? formatTimestamp(lastSync) : 'Not synced yet'}</div>
-            {syncMessage ? <div style={styles.syncText}>{syncMessage}</div> : null}
-          </div>
-          <div style={styles.syncButtons}>
-            <button type="button" onClick={syncNow} style={styles.primaryButton} disabled={syncing}>{syncing ? 'Syncing...' : 'Sync Now'}</button>
-            <button type="button" onClick={replaceLocalFromSheet} style={styles.secondaryButton}>Pull From Sheet</button>
-          </div>
-        </div>
-
-        <div style={styles.panel}>
-          <div style={styles.listPanelHeader}>
-            <div>
-              <h2 style={styles.storeBarTitle}>Shopping Lists</h2>
-              <span style={styles.storeBarSubtitle}>Keep Home separate from camping, dinners, holidays, or projects.</span>
-            </div>
-            <div style={styles.listActions}>
-              <button type="button" onClick={renameActiveList} disabled={activeList.id === HOME_LIST_ID} style={styles.secondaryButtonSmall}>Rename</button>
-              <button type="button" onClick={deleteActiveList} disabled={activeList.id === HOME_LIST_ID} style={styles.deleteButtonSmall}>Delete List</button>
-            </div>
-          </div>
-
-          <div style={styles.tabWrap}>
-            {lists.map((list) => {
-              const isActive = activeList.id === list.id
-              const itemCount = items.filter((item) => item.list_id === list.id && !item.deleted).length
-              return (
-                <button key={list.id} type="button" onClick={() => selectList(list.id)} style={isActive ? styles.storeTabActive : styles.storeTab}>
-                  {list.name} ({itemCount})
-                </button>
-              )
-            })}
-          </div>
-
-          <form onSubmit={handleAddList} style={styles.addListForm}>
-            <input value={newListName} onChange={(e) => setNewListName(e.target.value)} placeholder="New list: Camping, Special Dinner..." style={styles.input} />
-            <button type="submit" style={styles.primaryButton}>Add List</button>
-          </form>
-        </div>
-
-        <form onSubmit={handleAddItem} style={styles.panel}>
-          <div style={styles.activeListBanner}>Adding items to: <strong>{activeList.name}</strong></div>
-          <div style={styles.grid}>
-            <div style={styles.fieldSpan2}>
-              <label style={styles.label}>Item</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Milk, bananas, bread..." style={styles.input} />
-            </div>
-            <div>
-              <label style={styles.label}>Qty</label>
-              <input value={qty} onChange={(e) => setQty(e.target.value)} placeholder="1" style={styles.input} />
-            </div>
-            <div>
-              <label style={styles.label}>Store</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)} style={styles.input}>
-                <option value="">No Store / Any Store</option>
-                {STORE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-              </select>
-            </div>
-            <div style={styles.fieldSpan3}>
-              <label style={styles.label}>Note</label>
-              <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="2%, ripe, brand, size..." style={styles.input} />
-            </div>
-          </div>
-          <button type="submit" style={styles.primaryButton} disabled={saving}>{saving ? 'Adding...' : 'Add Item'}</button>
-        </form>
-
-        <div style={styles.panel}>
-          <div style={styles.storeBarHeader}>
-            <h2 style={styles.storeBarTitle}>Store View</h2>
-            <span style={styles.storeBarSubtitle}>Store views show store-specific items plus unassigned items for the selected list.</span>
-          </div>
-          <div style={styles.tabWrap}>
-            {STORE_TABS.map((store) => (
-              <button key={store} type="button" onClick={() => setActiveStore(store)} style={activeStore === store ? styles.storeTabActive : styles.storeTab}>{store}</button>
-            ))}
-          </div>
-        </div>
-
-        {error ? <div style={styles.errorBox}>{error}</div> : null}
-
-        <div style={styles.columns}>
-          <section style={styles.panel}>
-            <div style={styles.sectionHeader}>
-              <h2 style={styles.sectionTitle}>Need to Buy</h2>
-              <span style={styles.countBadge}>{activeItems.length}</span>
-            </div>
-            {loading ? <p style={styles.emptyText}>Loading items...</p> : null}
-            {!loading && !activeItems.length ? <p style={styles.emptyText}>Nothing on this list for this store view.</p> : null}
-            <div style={styles.listWrap}>
-              {activeItems.map((item) => <ShoppingItem key={item.id} item={item} checked={false} onToggle={toggleChecked} onDelete={deleteItem} />)}
-            </div>
-          </section>
-
-          <section style={styles.panel}>
-            <div style={styles.sectionHeader}>
-              <h2 style={styles.sectionTitle}>In Cart</h2>
-              <div style={styles.headerActions}>
-                <span style={styles.countBadgeChecked}>{checkedItems.length}</span>
-                <button onClick={clearCheckedItems} style={styles.secondaryButtonSmall} type="button">Clear Cart</button>
-              </div>
-            </div>
-            {!checkedItems.length ? <p style={styles.emptyText}>Items you put in the cart will show here.</p> : null}
-            <div style={styles.listWrap}>
-              {checkedItems.map((item) => <ShoppingItem key={item.id} item={item} checked onToggle={toggleChecked} onDelete={deleteItem} />)}
-            </div>
-          </section>
-        </div>
+        </details>
       </div>
-    </div>
+
+      <details className="panel sync-tools">
+        <summary>{syncing ? 'Syncing…' : 'Sync controls'} <span className="muted">{lastSync ? `Last: ${formatTimestamp(lastSync)}` : 'Not synced yet'}</span></summary>
+        <div className="tool-content">
+          <div className="actions">
+            <button type="button" onClick={syncNow} className="primary" disabled={syncing}>Sync Now</button>
+            <button type="button" onClick={replaceLocalFromSheet} disabled={syncing}>Pull From Sheet</button>
+          </div>
+          <p className="muted">Changes save on this device. Pull replaces this device’s lists with the sheet.</p>
+        </div>
+      </details>
+      {syncMessage ? <p className="notice" role="status">{syncMessage}</p> : null}
+      {error ? <div className="error" role="alert">{error}</div> : null}
+
+      <form onSubmit={handleAddItem} className="panel add-item">
+        <div className="quick-add">
+          <input aria-label="Item name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Add an item…" />
+          <input aria-label="Quantity" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="Qty" />
+          <button type="submit" className="primary" disabled={saving}>{saving ? 'Adding…' : 'Add'}</button>
+        </div>
+        <details className="item-options">
+          <summary>Store &amp; note{category || note ? ' • added' : ' (optional)'}</summary>
+          <div className="optional-fields">
+            <label>Store<select value={category} onChange={(e) => setCategory(e.target.value)}>
+              <option value="">Any Store</option>
+              {STORE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select></label>
+            <label>Note<input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Brand, size, ripeness…" /></label>
+          </div>
+        </details>
+      </form>
+
+      <nav className="store-filters" aria-label="Filter by store">
+        {STORE_TABS.map((store) => <button key={store} type="button" aria-pressed={activeStore === store} onClick={() => setActiveStore(store)}>{store}</button>)}
+      </nav>
+      <div className="columns">
+        <section className="panel shopping-section" aria-labelledby="need-title">
+          <div className="section-header"><h2 id="need-title">Need to Buy</h2><span className="count">{activeItems.length}</span></div>
+          {loading ? <p className="empty">Loading items…</p> : null}
+          {!loading && !activeItems.length ? <p className="empty">Nothing to buy in this store view.</p> : null}
+          <div>{activeItems.map((item) => <ShoppingItem key={item.id} item={item} checked={false} onToggle={toggleChecked} onDelete={deleteItem} />)}</div>
+        </section>
+        <details className="panel shopping-section cart">
+          <summary>In Cart <span className="count">{checkedItems.length}</span></summary>
+          <div className="cart-content">
+            {checkedItems.length ? <button onClick={clearCheckedItems} type="button">Clear Cart</button> : <p className="empty">Your cart is empty.</p>}
+            {checkedItems.map((item) => <ShoppingItem key={item.id} item={item} checked onToggle={toggleChecked} onDelete={deleteItem} />)}
+          </div>
+        </details>
+      </div>
+    </main>
   )
 }
 
 function ShoppingItem({ item, checked, onToggle, onDelete }) {
   return (
-    <button type="button" onClick={() => onToggle(item)} style={checked ? styles.cartCardButtonChecked : styles.cartCardButton}>
-      <div style={styles.itemHeader}>
-        <div style={styles.itemHeaderLeft}>
-          <span style={checked ? styles.inCartBadge : styles.cartBadge}>{checked ? 'In Cart' : 'Put in Cart'}</span>
-          <strong style={checked ? styles.itemNameChecked : styles.itemName}>{item.name}</strong>
-        </div>
-        <span style={styles.itemQty}>{item.qty}</span>
-      </div>
-      <div style={styles.itemBottomRow}>
-        <span style={checked ? styles.storeTagChecked : styles.storeTag}>{getStoreLabel(item.category)}</span>
-        {checked ? <span style={styles.timeText}>{formatTimestamp(item.updated_at)}</span> : null}
-        {!checked && item.note ? <span style={styles.noteText}>{item.note}</span> : null}
-      </div>
-      <div style={styles.itemFooter}>
-        <span style={styles.tapHint}>{checked ? 'Tap card to move back to shopping list' : 'Tap card to mark as in cart'}</span>
-        <button type="button" onClick={(e) => { e.stopPropagation(); onDelete(item.id) }} style={styles.deleteButton}>Delete</button>
-      </div>
-    </button>
+    <div className={`item-row${checked ? ' checked' : ''}`}>
+      <button type="button" className="item-toggle" aria-label={`${checked ? 'Move back to list' : 'Put in cart'}: ${item.name}, quantity ${item.qty}`} aria-pressed={checked} onClick={() => onToggle(item)}>
+        <span className="check" aria-hidden="true">{checked ? '✓' : '○'}</span>
+        <span className="item-copy"><strong>{item.name}</strong><span className="item-meta">{getStoreLabel(item.category)}{item.note ? ` · ${item.note}` : ''}</span></span>
+        <span className="quantity">×{item.qty}</span>
+      </button>
+      <button type="button" className="delete-item" aria-label={`Delete ${item.name}`} title={`Delete ${item.name}`} onClick={() => onDelete(item.id)}>×</button>
+    </div>
   )
-}
-
-const styles = {
-  page: { minHeight: '100vh', background: '#f4f6fb', padding: '20px', fontFamily: 'Arial, sans-serif', color: '#142033' },
-  appCard: { maxWidth: '980px', margin: '0 auto' },
-  headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' },
-  title: { margin: 0, fontSize: '32px', lineHeight: 1.1 },
-  subtitle: { margin: '6px 0 0', color: '#576277', fontSize: '16px' },
-  panel: { background: '#ffffff', border: '1px solid #d9e1ef', borderRadius: '20px', padding: '18px', boxShadow: '0 8px 24px rgba(20,32,51,0.06)', marginBottom: '16px' },
-  syncPanel: { background: '#ffffff', border: '1px solid #d9e1ef', borderRadius: '20px', padding: '18px', boxShadow: '0 8px 24px rgba(20,32,51,0.06)', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' },
-  syncText: { color: '#576277', fontSize: '14px', marginTop: '6px' },
-  syncButtons: { display: 'flex', gap: '10px', flexWrap: 'wrap' },
-  statusPillOnline: { borderRadius: '999px', color: '#fff', padding: '9px 14px', fontSize: '14px', fontWeight: 700 },
-  label: { display: 'block', fontSize: '14px', fontWeight: 700, marginBottom: '6px' },
-  input: { width: '100%', boxSizing: 'border-box', minHeight: '48px', borderRadius: '14px', border: '1px solid #c8d2e2', padding: '12px 14px', fontSize: '16px', background: '#fff' },
-  primaryButton: { minHeight: '48px', border: 'none', borderRadius: '14px', background: '#1f6fff', color: '#fff', padding: '0 18px', fontSize: '16px', fontWeight: 700, cursor: 'pointer' },
-  secondaryButton: { minHeight: '44px', borderRadius: '14px', border: '1px solid #c8d2e2', background: '#fff', padding: '0 16px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' },
-  secondaryButtonSmall: { minHeight: '36px', borderRadius: '12px', border: '1px solid #c8d2e2', background: '#fff', padding: '0 12px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
-  deleteButtonSmall: { minHeight: '36px', borderRadius: '12px', border: '1px solid #f0c4c4', background: '#fff5f5', color: '#a22a2a', padding: '0 12px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
-  errorBox: { background: '#ffe8e8', color: '#9f1d1d', padding: '12px 14px', borderRadius: '14px', border: '1px solid #f1b3b3', marginBottom: '16px' },
-  grid: { display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px', marginBottom: '14px' },
-  fieldSpan2: { gridColumn: 'span 2' },
-  fieldSpan3: { gridColumn: 'span 3' },
-  storeBarHeader: { display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' },
-  storeBarTitle: { margin: 0, fontSize: '22px' },
-  storeBarSubtitle: { fontSize: '14px', color: '#576277' },
-  listPanelHeader: { display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: '12px' },
-  listActions: { display: 'flex', gap: '8px', flexWrap: 'wrap' },
-  addListForm: { display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', marginTop: '14px' },
-  activeListBanner: { background: '#eef4ff', color: '#1747aa', borderRadius: '14px', padding: '10px 12px', marginBottom: '14px', fontSize: '15px' },
-  tabWrap: { display: 'flex', flexWrap: 'wrap', gap: '10px' },
-  storeTab: { minHeight: '40px', borderRadius: '999px', border: '1px solid #c8d2e2', background: '#fff', padding: '0 14px', fontSize: '14px', fontWeight: 700, color: '#142033', cursor: 'pointer' },
-  storeTabActive: { minHeight: '40px', borderRadius: '999px', border: '1px solid #1f6fff', background: '#1f6fff', color: '#fff', padding: '0 14px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' },
-  columns: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' },
-  sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' },
-  headerActions: { display: 'flex', alignItems: 'center', gap: '8px' },
-  sectionTitle: { margin: 0, fontSize: '22px' },
-  countBadge: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '34px', height: '34px', borderRadius: '999px', background: '#e9efff', color: '#1747aa', fontWeight: 700, fontSize: '14px', padding: '0 10px' },
-  countBadgeChecked: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '34px', height: '34px', borderRadius: '999px', background: '#e9fff0', color: '#23713e', fontWeight: 700, fontSize: '14px', padding: '0 10px' },
-  listWrap: { display: 'flex', flexDirection: 'column', gap: '12px' },
-  cartCardButton: { width: '100%', textAlign: 'left', border: '1px solid #d9e1ef', borderRadius: '18px', padding: '14px', background: '#ffffff', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '10px' },
-  cartCardButtonChecked: { width: '100%', textAlign: 'left', border: '1px solid #b8dfc2', borderRadius: '18px', padding: '14px', background: '#eefcf2', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '10px' },
-  itemHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' },
-  itemHeaderLeft: { display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 },
-  cartBadge: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 'fit-content', borderRadius: '999px', background: '#eef4ff', color: '#1747aa', fontSize: '12px', fontWeight: 700, padding: '6px 10px' },
-  inCartBadge: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 'fit-content', borderRadius: '999px', background: '#dff8e7', color: '#23713e', fontSize: '12px', fontWeight: 700, padding: '6px 10px' },
-  itemName: { fontSize: '28px', lineHeight: 1 },
-  itemNameChecked: { fontSize: '28px', lineHeight: 1, color: '#1f5e35' },
-  itemQty: { fontSize: '22px', fontWeight: 700, color: '#576277', whiteSpace: 'nowrap', paddingTop: '4px' },
-  itemBottomRow: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' },
-  storeTag: { fontSize: '12px', fontWeight: 700, color: '#1747aa', background: '#e9efff', borderRadius: '999px', padding: '4px 8px' },
-  storeTagChecked: { fontSize: '12px', fontWeight: 700, color: '#23713e', background: '#dff8e7', borderRadius: '999px', padding: '4px 8px' },
-  noteText: { fontSize: '20px', color: '#576277' },
-  timeText: { fontSize: '12px', color: '#576277' },
-  itemFooter: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' },
-  tapHint: { fontSize: '13px', color: '#576277' },
-  deleteButton: { minHeight: '38px', borderRadius: '12px', border: '1px solid #f0c4c4', background: '#fff5f5', color: '#a22a2a', padding: '0 12px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' },
-  emptyText: { color: '#576277', fontSize: '15px', margin: 0 },
 }
