@@ -21,31 +21,43 @@ const LIST_HEADERS = [
   'updated_at',
 ];
 
+// Protocol 2: item changes under a shared lock; no full-device overwrites.
 function doGet(e) {
   const params = e && e.parameter ? e.parameter : {};
   const callback = params.callback || 'callback';
-  const action = params.action || 'load';
-
+  const lock = LockService.getScriptLock();
   try {
-    let result;
-
-    if (action === 'save') {
-      const items = params.payload ? parseBase64Json_(params.payload) : [];
-      const lists = params.listsPayload ? parseBase64Json_(params.listsPayload) : getDefaultLists_();
-      saveLists_(lists);
-      saveItems_(items);
-      result = { ok: true, savedItems: items.length, savedLists: lists.length };
-    } else {
-      result = {
-        ok: true,
-        items: loadItems_(),
-        lists: loadLists_(),
-      };
+    lock.waitLock(20000);
+    if (params.action === 'save') throw new Error('Please close and reopen the shopping app to update automatic sync. No shared data was replaced.');
+    const ledger = getSheet_('_ShoppingSync', ['revision', 'operation_id']);
+    let revision = Number(ledger.getRange(2, 1).getValue()) || 0;
+    let snapshot = { items: loadItems_(), lists: loadLists_() };
+    let acknowledged = [];
+    let conflict = false;
+    if (params.action === 'sync') {
+      const operations = parseBase64Json_(params.payload || 'W10');
+      if (!Array.isArray(operations) || operations.length > 10) throw new Error('Invalid sync batch.');
+      const count = ledger.getLastRow();
+      const seen = new Set(count > 2 ? ledger.getRange(3, 2, count - 2, 1).getValues().map(row => row[0]) : []);
+      acknowledged = operations.filter(op => seen.has(op.id)).map(op => op.id);
+      const fresh = operations.filter(op => !seen.has(op.id));
+      conflict = fresh.length > 0 && Number(params.revision) !== revision;
+      if (!conflict && fresh.length) {
+        snapshot = applyOperations(snapshot, fresh);
+        saveLists_(snapshot.lists);
+        saveItems_(snapshot.items);
+        revision++;
+        ledger.getRange(2, 1).setValue(revision);
+        ledger.getRange(Math.max(3, count + 1), 2, fresh.length, 1).setValues(fresh.map(op => [op.id]));
+        SpreadsheetApp.flush();
+        acknowledged = operations.map(op => op.id);
+      }
     }
-
-    return jsonp_(callback, result);
+    return jsonp_(callback, { ok: true, protocol: 2, revision, conflict, acknowledged, items: snapshot.items, lists: snapshot.lists });
   } catch (err) {
     return jsonp_(callback, { ok: false, error: String(err && err.message ? err.message : err) });
+  } finally {
+    if (lock.hasLock()) lock.releaseLock();
   }
 }
 
@@ -58,11 +70,25 @@ function getSheet_(sheetName, headers) {
   }
 
   const firstRow = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
-  const needsHeaders = firstRow.every((cell) => cell === '') || headers.some((header, index) => firstRow[index] !== header);
-
-  if (needsHeaders) {
-    sheet.clear();
+  if (firstRow.every(cell => cell === '')) {
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.setFrozenRows(1);
+  } else if (headers.some((header, index) => firstRow[index] !== header)) {
+    // The original deployment used store/deleted and no list_id. Preserve a full
+    // sheet copy before mapping its known historical columns into the new schema.
+    const width = sheet.getLastColumn();
+    const oldHeaders = sheet.getRange(1, 1, 1, width).getValues()[0];
+    const allowed = ITEM_HEADERS.concat(['store', 'deleted']);
+    if (sheetName !== ITEMS_SHEET_NAME || !['id', 'name', 'qty', 'checked'].every(key => oldHeaders.includes(key)) || oldHeaders.some(key => !allowed.includes(key))) throw new Error('Unexpected headers in ' + sheetName + '. Existing data was preserved.');
+    const rows = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, width).getValues() : [];
+    const converted = rows.map(row => {
+      const value = {};
+      oldHeaders.forEach((key, index) => { if (value[key] === undefined || value[key] === '') value[key] = row[index]; });
+      return headers.map(key => key === 'list_id' ? (value.list_id || 'home') : key === 'category' ? (value.category || value.store || '') : key === 'created_at' ? (value.created_at || value.updated_at || new Date().toISOString()) : (value[key] === undefined ? '' : value[key]));
+    }).filter((row, index) => ![true, 'TRUE', 'true'].includes(rows[index][oldHeaders.indexOf('deleted')]));
+    sheet.copyTo(ss).setName('_Items before autosync ' + Date.now());
+    sheet.getRange(1, 1, Math.max(1, rows.length + 1), Math.max(width, headers.length)).clearContent();
+    sheet.getRange(1, 1, converted.length + 1, headers.length).setValues([headers].concat(converted));
     sheet.setFrozenRows(1);
   }
 
@@ -190,4 +216,31 @@ function jsonp_(callback, data) {
   return ContentService
     .createTextOutput(`${safeCallback}(${JSON.stringify(data)});`)
     .setMimeType(ContentService.MimeType.JAVASCRIPT);
+}
+
+// Used identically by the client and Apps Script. Patches never recreate deleted rows.
+function applyOperations(snapshot, operations) {
+  const items = new Map(snapshot.items.map(row => [row.id, { ...row }]))
+  const lists = new Map(snapshot.lists.map(row => [row.id, { ...row }]))
+  for (const op of operations) {
+    if (!op || !op.id || !op.recordId || !['item', 'list'].includes(op.entity) || !['put', 'patch', 'delete'].includes(op.type)) throw new Error('Invalid shopping change.')
+    const table = op.entity === 'item' ? items : lists
+    if (op.type === 'delete') {
+      if (op.entity === 'list' && op.recordId === 'home') continue
+      table.delete(op.recordId)
+      if (op.entity === 'list') for (const [id, item] of items) if (item.list_id === op.recordId) items.delete(id)
+      continue
+    }
+    const fields = op.entity === 'item' ? ['list_id', 'name', 'qty', 'note', 'category', 'checked', 'created_at', 'updated_at'] : ['name', 'created_at', 'updated_at']
+    const value = {}
+    for (const key of fields) if (Object.prototype.hasOwnProperty.call(op.value || {}, key)) value[key] = op.value[key]
+    if (op.type === 'put' && !table.has(op.recordId)) {
+      if (!String(value.name || '').trim()) throw new Error('A name is required.')
+      table.set(op.recordId, { ...value, id: op.recordId })
+    } else if (op.type === 'patch' && table.has(op.recordId)) {
+      table.set(op.recordId, { ...table.get(op.recordId), ...value })
+    }
+  }
+  // A stale offline add must not recreate an already-deleted list.
+  return { items: [...items.values()].filter(row => lists.has(row.list_id || 'home')), lists: [...lists.values()] }
 }
