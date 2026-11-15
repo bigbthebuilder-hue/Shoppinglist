@@ -52,3 +52,10 @@ summary { min-height: 44px; padding: 12px; cursor: pointer; font-size: 14px; }
 .delete-item { width: 44px; height: 44px; flex-shrink: 0; border: 0; background: transparent; font-size: 22px; padding: 0; }
 .checked { background: #eefcf2; }.checked .check { color: #23713e; }
 @media (max-width: 640px) { .app { padding: 10px; } h1 { font-size: 21px; } .columns { grid-template-columns: minmax(0, 1fr); gap: 0; } .optional-fields { grid-template-columns: minmax(0, 1fr); } }
+.sync-line { margin: -4px 0 4px; color: #576277; }
+.sync-line summary { font-size: 12px; padding: 12px 2px; }
+.sync-dot { display: inline-block; width: 7px; height: 7px; background: #23713e; border-radius: 50%; margin: 0 6px; }.sync-dot.waiting { background: #a86800; }
+.builder-settings { padding: 12px; }.builder-settings .actions { margin-top: 8px; }
+.add-item h2 { margin: 4px 0 10px; }.add-item .optional-fields { margin-top: 8px; }
+.recovery { font-size: 13px; max-width: 600px; }
+@media(max-width: 640px) { .app-header h1 { font-size: 20px; }.app-header > button { font-size: 13px; padding: 0 10px; }.list-picker { min-width: 160px; } }
